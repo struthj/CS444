@@ -11,12 +11,14 @@
 //reference: http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/MT2002/emt19937ar.html
 //reference: https://www.cs.nmsu.edu/~jcook/Tools/pthreads/pc.c
 //reference: http://nirbhay.in/blog/2013/07/producer_consumer_pthreads/
+//Partner Kevin T.
 
 //shared buffer for data
 struct buffer itemBuffer;
 //index for itemBuffer
 int consumerNum = 0;
 int producerNum = 0;
+
 
 //Conditions to signal that an item is ready to consume
 //and that an item has been consumed and needs another
@@ -40,7 +42,8 @@ int genRandomNumber(int floor, int ceiling)
 {
     int num = 0;
     num =  (int)genrand_int32();
-    num = num % (ceiling - floor);
+    //printf("generating: %d\n", num);
+    num = abs(num % (ceiling - floor));
     if(num < floor)
     {
         return floor;
@@ -58,19 +61,23 @@ void *consumer(void *foo)
 {
     while(1)
     {
-        //item to be consumed
-        struct item consumeItem;
         //lock shared buffer
         pthread_mutex_lock(&itemBuffer.shareLock);
+        //item to be consumed
+        struct item consumeItem;
+        //signal producer consumer is ready
+        pthread_cond_signal(&producerCond);
+        //wait for a number from producer
+        pthread_cond_wait(&consumerCond, &itemBuffer.shareLock);
         //if a consumer thread arrives while the buffer is empty
         //it blocks until a producer adds a new item.
         while(producerNum == 0)
         {
+            printf("AT MAX size\n");
             pthread_cond_wait(&consumerCond, &itemBuffer.shareLock);
         }
         //get item to consume from buffer
         consumeItem = itemBuffer.items[consumerNum];
-        printItem(&consumeItem);
         //increase the count of consumed items
         consumerNum++;
         //random waiting period
@@ -83,7 +90,7 @@ void *consumer(void *foo)
             consumerNum = 0;
         }
         //ready to consume again
-        pthread_cond_signal(&producerCond);
+        //pthread_cond_signal(&producerCond);
         //unlock shared buffer
         pthread_mutex_unlock(&itemBuffer.shareLock);
         //exit condition for testing/debug
@@ -99,32 +106,38 @@ void *producer(void *foo)
 {
     while(1)
     {
+        //lock shared buffer
+        pthread_mutex_lock(&itemBuffer.shareLock);
         //item to be produced
         struct item newItem;
         //data value and wait time using Mersenne Twister
         int value = genRandomNumber(1, 100);
-        printf("Value is %d\n", value);
         int wait = genRandomNumber(2,9);
         newItem.number = value;
         newItem.wait = wait;
+        printf("Producing Item:\n");
         printItem(&newItem);
-        //lock shared buffer
-        pthread_mutex_lock(&itemBuffer.shareLock);
         //block until consumer removes an item
         while(producerNum == 31)
         {
+            printf("AT MAX size\n");
             pthread_cond_wait(&producerCond, &itemBuffer.shareLock);
         }
         //add item to buffer
         itemBuffer.items[producerNum] = newItem;
         producerNum++;
+        //tell consumer a new item is ready
+        pthread_cond_signal(&consumerCond);
+        //wait for consumer to consume
+        pthread_cond_wait(&producerCond, &itemBuffer.shareLock);
         //resize if at max buffer size
         if(producerNum >= BUFFERSIZE)
         {
+            printf("AT MAX size\n");
             producerNum = 0;
         }
         //ready to consume
-        pthread_cond_signal(&consumerCond);
+        //pthread_cond_signal(&consumerCond);
         //shared buffer unlock
         pthread_mutex_unlock(&itemBuffer.shareLock);
     }
@@ -141,6 +154,7 @@ int main()
     pthread_create(&threads[0], NULL, consumer, NULL);
     pthread_create(&threads[1], NULL, producer, NULL);
     //join threads
+
     for(i = 0; i < 2; i++)
     {
         pthread_join(threads[i], NULL);
