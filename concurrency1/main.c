@@ -6,6 +6,12 @@
 //32 total items
 #define BUFFERSIZE 32
 
+//reference: https://linux.die.net/man/3/sleep
+//reference: https://www.guyrutenberg.com/2014/05/03/c-mt19937-example/
+//reference: http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/MT2002/emt19937ar.html
+//reference: https://www.cs.nmsu.edu/~jcook/Tools/pthreads/pc.c
+//reference: http://nirbhay.in/blog/2013/07/producer_consumer_pthreads/
+
 //shared buffer for data
 struct buffer itemBuffer;
 //index for itemBuffer
@@ -64,6 +70,7 @@ void *consumer(void *foo)
         }
         //get item to consume from buffer
         consumeItem = itemBuffer.items[consumerNum];
+        printItem(&consumeItem);
         //increase the count of consumed items
         consumerNum++;
         //random waiting period
