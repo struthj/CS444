@@ -1,0 +1,11 @@
+# depslib dependency file v1.0
+1491776693 source:/home/streamin/Documents/CS344/concurrency1/main.c
+	<stdio.h>
+	<stdlib.h>
+	<pthread.h>
+	<unistd.h>
+	"mt19937ar.c"
+
+1491768872 /home/streamin/Documents/CS344/concurrency1/mt19937ar.c
+	<stdio.h>
+
