@@ -11,7 +11,7 @@
 //reference: http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/MT2002/emt19937ar.html
 //reference: https://www.cs.nmsu.edu/~jcook/Tools/pthreads/pc.c
 //reference: http://nirbhay.in/blog/2013/07/producer_consumer_pthreads/
-//Partner Kevin T.
+//Partner: Kevin T.
 
 //shared buffer for data
 struct buffer itemBuffer;
@@ -63,6 +63,10 @@ void *consumer(void *foo)
     {
         //lock shared buffer
         pthread_mutex_lock(&itemBuffer.shareLock);
+        if(consumerNum >= BUFFERSIZE)
+        {
+            consumerNum = 0;
+        }
         //item to be consumed
         struct item consumeItem;
         //signal producer consumer is ready
@@ -71,9 +75,9 @@ void *consumer(void *foo)
         pthread_cond_wait(&consumerCond, &itemBuffer.shareLock);
         //if a consumer thread arrives while the buffer is empty
         //it blocks until a producer adds a new item.
-        while(producerNum == 0)
+        if(producerNum == 0)
         {
-            printf("AT MAX size\n");
+            printf("AT MAX size3\n");
             pthread_cond_wait(&consumerCond, &itemBuffer.shareLock);
         }
         //get item to consume from buffer
@@ -111,16 +115,19 @@ void *producer(void *foo)
         //item to be produced
         struct item newItem;
         //data value and wait time using Mersenne Twister
-        int value = genRandomNumber(1, 100);
-        int wait = genRandomNumber(2,9);
-        newItem.number = value;
-        newItem.wait = wait;
+        newItem.number = genRandomNumber(1, 100);
+        newItem.wait = genRandomNumber(2, 9);
+        if(consumerNum >= BUFFERSIZE)
+        {
+            consumerNum = 0;
+        }
         printf("Producing Item:\n");
         printItem(&newItem);
         //block until consumer removes an item
-        while(producerNum == 31)
+        if(producerNum == 31)
         {
-            printf("AT MAX size\n");
+            printf("AT MAX size 1\n");
+            pthread_cond_signal(&consumerCond);
             pthread_cond_wait(&producerCond, &itemBuffer.shareLock);
         }
         //add item to buffer
@@ -133,7 +140,7 @@ void *producer(void *foo)
         //resize if at max buffer size
         if(producerNum >= BUFFERSIZE)
         {
-            printf("AT MAX size\n");
+            printf("AT MAX size 2\n");
             producerNum = 0;
         }
         //ready to consume
