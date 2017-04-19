@@ -11,6 +11,7 @@
 //reference: http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/MT2002/emt19937ar.html
 //reference: https://www.cs.nmsu.edu/~jcook/Tools/pthreads/pc.c
 //reference: http://nirbhay.in/blog/2013/07/producer_consumer_pthreads/
+//reference: http://stackoverflow.com/questions/35403892/creating-threads-in-a-loop
 //Partner: Kevin T.
 
 //shared buffer for data
@@ -38,11 +39,43 @@ struct buffer
     pthread_mutex_t shareLock;
 };
 
+int checkForx86()
+{
+    //general purpose registers
+    unsigned int eax = 0x01;
+	unsigned int ebx;
+	unsigned int ecx;
+	unsigned int edx;
+	__asm__ __volatile__(
+	                     "cpuid;"
+	                     : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx)
+	                     : "a"(eax)
+	                     );
+    //if data size greater than 32bit
+    if (ecx & 0x40000000)
+    {
+        //32 bit system use rdrand
+        return 1;
+    }
+    else{
+        //64 bit
+        return 0;
+    }
+}
+
 int genRandomNumber(int floor, int ceiling)
 {
     int num = 0;
-    num =  (int)genrand_int32();
-    //printf("generating: %d\n", num);
+    if(checkForx86() == 1)
+    {
+        //use rdrand
+        __asm__ __volatile__("rdrand %0":"=r"(num));
+    }
+    else
+    {
+        //use mersenne twister
+        num =  (int)genrand_int32();
+    }
     num = abs(num % (ceiling - floor));
     if(num < floor)
     {
@@ -151,18 +184,28 @@ void *producer(void *foo)
 
 }
 
-int main()
+int main(int argc, char *argv[])
 {
-    //producer and consumer threads
-    pthread_t threads[2];
+    //check for user input number of threads
+    if(argc != 2)
+    {
+        printf("Usage is: %s <number of threads>\n", argv[0]);
+        exit(0);
+    }
+    //user enters number of threads
+    int numThreads = atoi(argv[1]);
+    //producer and consumer threads with enough space for user entered number of threads
+    pthread_t threads[2 * numThreads];
     //index var
     int i = 0;
     //create threads
-    pthread_create(&threads[0], NULL, consumer, NULL);
-    pthread_create(&threads[1], NULL, producer, NULL);
+    for(i = 0; i < numThreads; i++)
+    {
+        pthread_create(&threads[i], NULL, consumer, NULL);
+        pthread_create(&threads[i + 1], NULL, producer, NULL);
+    }
     //join threads
-
-    for(i = 0; i < 2; i++)
+    for(i = 0; i < 2 * numThreads; i++)
     {
         pthread_join(threads[i], NULL);
     }

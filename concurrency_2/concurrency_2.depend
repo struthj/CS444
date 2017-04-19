@@ -1,0 +1,10 @@
+# depslib dependency file v1.0
+1492590677 source:/home/streamin/Documents/CS362-004-SP17/projects/932267692/concurrency_2/main.c
+	<stdio.h>
+	<pthread.h>
+	<stdlib.h>
+	<unistd.h>
+	<ctype.h>
+	<sys/types.h>
+	<sys/wait.h>
+
