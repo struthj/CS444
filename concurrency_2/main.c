@@ -69,7 +69,6 @@ void* philosopher(void* n)
 int main()
 {
     int i = 0;
-    void* return_val;
     //initialize forks
     for(i = 0;i < NUM_PHILOSOPHERS;i++)
     {
@@ -78,12 +77,13 @@ int main()
     //create philosophers
     for(i = 0;i < NUM_PHILOSOPHERS;i++)
     {
+        printf("I is %d \n", i);
         pthread_create(&threads[i], NULL, philosopher, &i);
     }
     //join philosopher processes
     for(i = 0;i < NUM_PHILOSOPHERS;i++)
     {
-        pthread_join(&threads[i], &return_val);
+        pthread_join(threads[i], NULL);
     }
 
     return 0;
