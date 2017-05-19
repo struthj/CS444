@@ -1,0 +1,96 @@
+\documentclass[letterpaper,10pt,titlepage,draftclsnofoot,onecolumn]{IEEEtran}
+                              
+
+\usepackage{alltt}                                           
+\usepackage{float}
+\usepackage{color}
+\usepackage{url}
+
+\usepackage{balance}
+\usepackage{enumitem}
+
+
+\usepackage{geometry}
+\geometry{textheight=8.5in, textwidth=6in}
+\geometry{margin = 0.75in}
+
+
+%random comment
+
+\newcommand{\cred}[1]{{\color{red}#1}}
+\newcommand{\cblue}[1]{{\color{blue}#1}}
+
+\usepackage{hyperref}
+\usepackage{titling}
+
+\def\classname{}
+\def\name{Joseph Struth}
+
+%pull in the necessary preamble matter for pygments output
+
+
+%% The following metadata will show up in the PDF properties
+\hypersetup{
+  colorlinks = true,
+  urlcolor = black,
+  pdfauthor = {\name},
+  pdfkeywords = {cs444 ``operating systems'' Processes},
+  pdftitle = {CS444 Writing Topic 2: I/O and Provided Functionality},
+  pdfsubject = {CS444 Writing Topic 2: I/O and Provided Functionality},
+  pdfpagemode = UseNone
+}
+
+\begin{document}
+\title{Writing Topic 2: I/O and Provided Functionality\\
+\large Operating Systems II \\ Spring 2017}
+\author{Joseph Struth}
+\begin{titlingpage}
+    \maketitle
+	\centering{}
+\end{titlingpage}
+
+\section{Abstract}
+To interact with a computer we must use some form of input and output to transfer data or user actions to and from a device.
+This writeup will cover the differences and comparisons between how modern operating systems like Windows, FreeBSD, and Linux handle and implement Input and Output interactions. More specifically it will examine Input and Output devices and scheduling
+
+\section{Windows}
+Windows uses an I/O manager to define and handle how I/O requests are delivered to device drivers. Windows Input and Output requests are encapsulated as a data structure called the I/O request packet or the \texttt{\_IRP} structure [2]. This packaging allows threads to receive a number of I/O requests at a time. The Windows I/O manager works as an common interface to kernel mode drivers and file system drivers. This helps simplify driver development across the kernel and OS [4]. Windows will begin the Input and Output processes with a call to a function like \texttt{ReadFile} or \texttt{WriteFile} (synchronously, but windows allows asynchronous as well) which will treat the I/O request as a file in a processes virtual memory [1]. Drivers will then execute driver specific code and present the I/O manager with an IRP it can interact with. Windows drivers tend to follow the Windows Driver Model or WDM which allows drivers to be compatible across all Windows operating systems [1]. According to MSDN there are three types of WDM drivers which each serve a different purpose. First the bus driver is used for an individual bus device (this is device independent) and will also report to the OS if there are child devices connected to that bus. Individual devices are run by function drivers. Lastly, filter drivers are used to filter I/O requests for devices, or buses. Now to schedule \texttt{\_IRP} requests (similar to how windows uses a priority queue for its processes) the Windows I/O manager uses five priority levels [3]. Currently only three of the five are used. Critical priority is for the memory manager. Normal priority is for normal I/O usage. Very low priority is used for scheduled tasks, memory defrag, indexing, and background I/O activities. Windows also uses two prioritization modes or strategies called hierarchy and idle prioritization [1]. Hierarchy prioritization handles all of the priority levels except for the Very Low priority level. Idle prioritization handles, in a separate queue, non-idle I/O. Since very low or idle I/O is handled after hierarchy I/O, the non-idle or very low priority I/O requests may be starved [1]. This can occur if there is at least one non-idle I/O request in the hierarchical priority mode queue. According to MSDN this is avoided by a timer that per half a second guarantees that at least one I/O request is processed. This also helps control the rate that I/O transfers are sent. Both the Idle and hierarchic prioritization queues use FIFO ordering. Another aspect of windows I/O that bypasses the \texttt{\_IRP} entirely is the Fast I/O mechanism that allows an I/O device to go directly to the driver and complete it's request [6]. Fast I/O is meant for quick synchronous I/O on cached files between buffers bypassing both the file system and regular driver stack.
+
+\section{FreeBSD}
+FreeBSD is similar to Unix in many ways, including how it handles I/O [5]. In Unix I/O is a sequence of bytes that can be accessed in sequence or randomly [7]. In Unix there are no access methods or control blocks for a normal user process. The Unix kernel will not try and oppose any structure on I/O , it is simply a stream of bytes called an I/O stream. I/O streams can be piped as input to any program. Unix processes uses integers called descriptors to reference specific I/O streams. Familiar functions \texttt{open}, \texttt{read}, \texttt{write}, and \texttt{close} can be used to manipulate I/O streams [7]. FreeBSD has three types of data structures represented by descriptors: files, pipes, and sockets [7]. Files are just a simple linear array of bytes with at least one name. I/O devices are accessed as files in FreeBSD. Pipes are also linear arrays of bytes used as I/O streams (these can be named or unnamed using \texttt{open}) [7]. Lastly, sockets are used to communicate between processes. These are created using \texttt{socket} and will exist as long as at least one process has a descriptor to it. FreeBSD separates I/O into different categories character devices, block devices, and socket interfaces [7]. Character devices are unstructured devices like communication lines, unbuffered disks (and magnetic tapes), and terminal device drivers. Block devices are structured and are disks, magnetic tapes, and random access type devices. File systems are created using block devices. One more distinction that FreeBSD makes between I/O devices are device special files and special files [7]. Device special files are created using a system call \texttt{mknod} this allows for special characteristics or parameters of a device to be access or modified [7]. Special files are how processes usually access devices in the file system. In the 4.2BSD kernel sockets where expanded upon to allow connections between sockets on two unrelated processes even on different machines [7]. Unix system calls were used for naming and connection, but FreeBSD adds six system calls that implement sending and receiving of addressed messages. 
+
+\section{Comparison to Linux}
+Linux represents I/O as block I/O [8]. This generic block layer serves as an abstraction for block devices used by the operating system [8]. Block devices can be either logical  or physical like software, RAID, or disks [8]. I/O requests are stored in a request queue, this takes the form of a linked list in Linux. Scheduling for I/O requests is handled by an algorithm in one of Linux's I/O schedulers like the deprecated Linus Elevator, Noop, Deadline, or the Completely Fair scheduler [9]. The scheduler will assign a request to a specific queue by the process it originated from, which will then be sorted [9]. Linux and FreeBSD are the most similar, both are based on Unix and have a similar structure for I/O requests. Windows is much different from both Linux and FreeBSD in that it uses the Windows I/O manager. Windows also uses priorities for it's I/O requests which Linux and FreeBSD do not. FreeBSD and Linux take a more straight forward approach, while Windows separates logic across the kernel. A similarity is that all three operating systems provide abstraction to the user to interact with device drivers.
+
+\begin{thebibliography}{10}
+\bibitem{1}
+Russinovich, Mark, Alex Ionescu, and David Solomon. "Understanding The Windows I/O System | Microsoft Press Store". Microsoftpressstore.com. N.p., 2017. Web. 19 May 2017.
+
+\bibitem{2} "I/O Request Packets". Docs.microsoft.com. N.p., 2017. Web. 19 May 2017.
+
+\bibitem{3}
+"IRP (Windows Drivers)". Msdn.microsoft.com. N.p., 2017. Web. 19 May 2017.
+
+\bibitem{4}
+"Overview Of The Windows I/O Model (Windows Drivers)". Msdn.microsoft.com. N.p., 2017. Web. 19 May 2017.
+
+\bibitem{5}
+G.~V. N.-N. Marshall Kirk~McMusick, {\em Design and Implementation of the
+  FreeBSD Operating System}.
+\newblock Addison-Wesley, 2nd~ed., 2015.
+
+\bibitem{6}
+"Irps Are Different From Fast I/O". Docs.microsoft.com. N.p., 2017. Web. 19 May 2017.
+
+\bibitem{7}
+"Design Overview Of 4.4BSD: I/O System". Freebsd.org. N.p., 2017. Web. 19 May 2017.
+
+\bibitem{8}
+Traeger, Avishay. "An Introduction To Linux Block I/O". ibm.com. N.p., 2012. Web. 19 May 2017.
+
+\bibitem{9}
+Love, Robert. "Linux Kernel Development Chapter 13. The Block I/O Layer". Makelinux.net. N.p., 2005. Web. 19 May 2017.
+
+ \end{thebibliography}
+
+\end{document}
